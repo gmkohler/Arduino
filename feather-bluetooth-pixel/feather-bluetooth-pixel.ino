@@ -4,29 +4,22 @@
 #include <FeatherBluetoothWrapper.h>
 #include <LoggingWrapper.h>
 #include <GammaCorrection.h>
-
-#define NULL_COMMAND 0
-#define COLOR_COMMAND 1
+#include <BluetoothData.h>
 
 // LED Ring Attributes
 #define PIN 6
 #define NUM_LEDS 16
 #define BRIGHTNESS 32
 
-#define LOGGING true
+#define LOGGING false
 
 // Initialize the LED and BLE
-Adafruit_NeoPixel strip(NUM_LEDS, PIN, NEO_RGB + NEO_KHZ800);
+Adafruit_NeoPixel strip(NUM_LEDS, PIN, NEO_GRB + NEO_KHZ800);
 FeatherBluetooth ble;
 Logger logger(LOGGING);
 
 // Forward-define methods
 void setLEDColor(uint32_t hex, uint8_t wait);
-
-struct Data {
-    uint8_t command;
-    char message[7];
-};
 
 void setup() {
     logger.initialize();
@@ -38,8 +31,6 @@ void setup() {
 }
 
 void loop() {
-    struct Data data;
-
     // Check for incoming characters from Bluefruit
     char *line = ble.read_line();
     // Return if insufficient data
@@ -49,10 +40,7 @@ void loop() {
     }
 
     logger.log("Line: %s", line);
-    
-    data.command = line[0] - '0';
-    strlcpy(data.message, line, 7);
-
+    BluetoothData data(line);
     logger.log("Command: %d\nMessage: %s", data.command, data.message);
 
     switch (data.command) {
@@ -62,8 +50,9 @@ void loop() {
           break;
         case COLOR_COMMAND:
           uint32_t hex_color = strtol(data.message, (char **) NULL, 16);
-          logger.log("Got color: %x", hex_color);
-          setLEDColor(gamma_correct_hex(hex_color), 35);
+          uint32_t gamma_corrected = gamma_correct_hex(hex_color);
+          logger.log("Got color: %lx\nGamma corrected: %lx", hex_color, gamma_corrected);
+          setLEDColor(gamma_corrected, 35);
           break;
         default:
           logger.log("Unrecognized command: %d", data.command);

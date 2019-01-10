@@ -35,7 +35,7 @@ uint32_t gamma_correct_hex(uint32_t hex) {
     color[1] = (uint8_t) CORRECT_GAMMA((hex & 0xff00) >> 8);
     color[2] = (uint8_t) CORRECT_GAMMA(hex & 0xff);
 
-    return ((color[0] << 16) + (color[1] << 8) + color[2]);
+    return (((uint32_t) color[0] << 16) + ((uint32_t) color[1] << 8) + (uint32_t) color[2]);
 }
 
 

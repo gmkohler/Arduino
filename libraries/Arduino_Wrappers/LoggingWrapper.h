@@ -28,7 +28,7 @@ class Logger {
        if (!logging) return;
 
        while (!Serial);
-       Serial.begin(115200);
+       Serial.begin(9600);
        Serial.println("Serial available!"); 
     }
 
