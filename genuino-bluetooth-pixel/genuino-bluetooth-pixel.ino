@@ -3,6 +3,7 @@
 #include <GammaCorrection.h>
 #include <Adafruit_NeoPixel.h>
 #include <BluetoothData.h>
+#include <LEDAnimator.h>
 
 #ifdef __AVR__
   #include <avr/power.h>
@@ -14,8 +15,11 @@
 #define NUM_LEDS 24
 #define BRIGHTNESS 32
 
-// Forward-define methods
-void setLEDColor(uint32_t hex, uint8_t wait);
+#define NUM_ANIMATIONS 1
+
+AnimData animations[NUM_ANIMATIONS] = {
+  AnimData(ANIMATION_LOOP, 0)
+};
 
 // Parameter 1 = number of pixels in strip
 // Parameter 2 = Arduino pin number (most are valid)
@@ -28,11 +32,10 @@ void setLEDColor(uint32_t hex, uint8_t wait);
 Adafruit_NeoPixel strip = Adafruit_NeoPixel(NUM_LEDS, PIN, NEO_RGB + NEO_KHZ800);
 GenuinoBluetooth ble;
 Logger logger(LOGGING);
+LEDAnimator animator(&strip, &logger, animations, NUM_ANIMATIONS);
 
-// IMPORTANT: To reduce NeoPixel burnout risk, add 1000 uF capacitor across
-// pixel power leads, add 300 - 500 Ohm resistor on first pixel's data input
-// and minimize distance between Arduino and first pixel.  Avoid connecting
-// on a live circuit...if you must, connect GND first.
+BluetoothData data;
+bool run_animation = false;
 
 void setup() {
   // This is for Trinket 5V 16MHz, you can remove these three lines if you are not using a Trinket
@@ -55,25 +58,31 @@ void loop() {
     // Check for incoming characters from Bluefruit
     char *line = ble.read_line();
     // Return if insufficient data
-    if (strlen(line) < 7) {
-        ble.proceed();
-        return;
+    if (strlen(line) >= 7) {
+      run_animation = false;
+      animator.reset();
+      logger.log("Line: %s", line);
+      data.read(line);
+      logger.log("Command: %d\nMessage: %s", data.command, data.message);
+    } else if (!run_animation) {
+      ble.proceed();
+      return;
     }
-
-    logger.log("Line: %s", line);
-    BluetoothData data(line);
-    logger.log("Command: %d\nMessage: %s", data.command, data.message);
 
     switch (data.command) {
         case NULL_COMMAND:
           logger.log("Null command: %d", data.command);
-          setLEDColor(0, 35);
+          animator.animate_led_color(0, 35);
           break;
         case COLOR_COMMAND:
-          uint32_t hex_color = strtol(data.message, (char **) NULL, 16);
-          uint32_t gamma_corrected = gamma_correct_hex(hex_color);
-          logger.log("Got color: %lx\nGamma corrected: %lx", hex_color, gamma_corrected);
-          setLEDColor(gamma_corrected, 35);
+          logger.log("Got color: %lx\nGamma corrected: %lx", data.hex_color(), data.gamma_corrected_hex());
+          animator.animate_led_color(data.gamma_corrected_hex(), 35);
+          break;
+        case ANIMATE_COMMAND:
+          logger.log("Animating");
+          run_animation = true;
+          animator.set_animation_color(data.gamma_corrected_hex());
+          animator.step();
           break;
         default:
           logger.log("Unrecognized command: %d", data.command);
@@ -81,13 +90,4 @@ void loop() {
     }
 
     ble.proceed();
-}
-
-// Fill the dots one after the other with a color
-void setLEDColor(uint32_t hex, uint8_t wait) {
-    for (uint8_t k = 1; k <= strip.numPixels(); ++k) {
-        strip.setPixelColor(NUM_LEDS - k, hex);
-        strip.show();
-        delay(wait);
-    }
 }
