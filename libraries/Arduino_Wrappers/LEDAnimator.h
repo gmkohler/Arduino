@@ -57,27 +57,28 @@ class LEDAnimator {
                 animate_led_color(0, 0);
                 break;
             case ANIMATION_LOOP:
-                animate_loop(anim_color, data.data, 100);
+                animate_loop(anim_color, data.data, 75);
                 break;
         }
     }
 
     void animate_led_color(uint32_t hex, uint8_t wait) {
-        animate_led_color(hex, 0, wait);
+        animate_led_color(hex, 0, wait, false);
     }
 
-    void animate_led_color(uint32_t hex, uint8_t start, uint8_t wait) {
-        for (uint8_t k = 0; k < strip->numPixels(); ++k) {
+    void animate_led_color(uint32_t hex, uint8_t start, uint8_t wait, bool interpolate) {
+        for (int k = 0; k < strip->numPixels(); ++k) {
             strip->setPixelColor(get_pixel_idx(start - k), hex);
-            logger->log("(%d, %d)", start - k, get_pixel_idx(start - k));
             strip->show();
-            delay(wait);
+            
+            if (interpolate) delay(interpolate_delay(k, strip->numPixels(), wait));
+            else delay(wait);
         }
     }
 
     void animate_loop(uint32_t hex, uint8_t start, uint8_t wait) {
-        animate_led_color(hex, start, wait);
-        animate_led_color(0, start - 1, wait);
+        animate_led_color(hex, start, wait, true);
+        animate_led_color(0, start - 1, wait, true);
     }
 
     private:
@@ -87,6 +88,12 @@ class LEDAnimator {
             return px - (abs(raw) % px);
         }
         return raw % px;
+    }
+
+    uint8_t interpolate_delay(int step, int max, uint8_t wait) {
+        double progress = (double) step / max; // [0, 1]
+        double offset_progress = 0.5 - progress;
+        return (uint8_t) abs(pow(offset_progress * 2, 2) * wait);
     }
 };
 

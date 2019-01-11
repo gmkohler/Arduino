@@ -34,6 +34,7 @@ class Logger {
 
     void log(char *line, ...) {
         if (!logging) return;
+        
         va_list args;
         va_start(args, line);
         vsprintf(buffer, line, args);
