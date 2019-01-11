@@ -12,7 +12,7 @@
 #define NUM_LEDS 16
 #define BRIGHTNESS 32
 
-#define LOGGING true
+#define LOGGING false
 #define NUM_ANIMATIONS 1
 
 AnimData animation[NUM_ANIMATIONS] = {
