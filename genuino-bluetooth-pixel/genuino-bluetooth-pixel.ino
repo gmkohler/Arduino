@@ -1,40 +1,57 @@
-#include <Arduino.h>
-#include <SPI.h>
-#include <Adafruit_NeoPixel.h>
-#include <FeatherBluetoothWrapper.h>
+#include <GenuinoBluetoothWrapper.h>
 #include <LoggingWrapper.h>
 #include <GammaCorrection.h>
+#include <Adafruit_NeoPixel.h>
 #include <BluetoothData.h>
 #include <LEDAnimator.h>
 
-// LED Ring Attributes
-#define PIN 6
-#define NUM_LEDS 16
-#define BRIGHTNESS 32
+#ifdef __AVR__
+  #include <avr/power.h>
+#endif
 
 #define LOGGING false
+
+#define PIN 6
+#define NUM_LEDS 24
+#define BRIGHTNESS 32
+
 #define NUM_ANIMATIONS 1
 
-AnimData animation[NUM_ANIMATIONS] = {
+AnimData animations[NUM_ANIMATIONS] = {
   AnimData(ANIMATION_LOOP, 0)
 };
 
-// Initialize the LED and BLE
-Adafruit_NeoPixel strip(NUM_LEDS, PIN, NEO_GRB + NEO_KHZ800);
-FeatherBluetooth ble;
+// Parameter 1 = number of pixels in strip
+// Parameter 2 = Arduino pin number (most are valid)
+// Parameter 3 = pixel type flags, add together as needed:
+//   NEO_KHZ800  800 KHz bitstream (most NeoPixel products w/WS2812 LEDs)
+//   NEO_KHZ400  400 KHz (classic 'v1' (not v2) FLORA pixels, WS2811 drivers)
+//   NEO_GRB     Pixels are wired for GRB bitstream (most NeoPixel products)
+//   NEO_RGB     Pixels are wired for RGB bitstream (v1 FLORA pixels, not v2)
+//   NEO_RGBW    Pixels are wired for RGBW bitstream (NeoPixel RGBW products)
+Adafruit_NeoPixel strip = Adafruit_NeoPixel(NUM_LEDS, PIN, NEO_GRB + NEO_KHZ800);
+GenuinoBluetooth ble;
 Logger logger(LOGGING);
-LEDAnimator animator(&strip, &logger, animation, NUM_ANIMATIONS);
+LEDAnimator animator(&strip, &logger, animations, NUM_ANIMATIONS);
 
 BluetoothData data;
 bool run_animation = false;
 
 void setup() {
-    logger.initialize();
-    ble.initialize("Cav Pager B");
+  // This is for Trinket 5V 16MHz, you can remove these three lines if you are not using a Trinket
+  #if defined (__AVR_ATtiny85__)
+    if (F_CPU == 16000000) clock_prescale_set(clock_div_1);
+  #endif
+  // End of trinket special code
 
-    strip.begin();
-    strip.setBrightness(BRIGHTNESS);
-    strip.show(); // Initialize all pixels to 'off'
+  // Init. and start BLE library.
+  ble.initialize("Cav Pager");
+  
+  strip.begin();
+  strip.setBrightness(BRIGHTNESS);
+  strip.show(); // Initialize all pixels to 'off'
+
+  logger.initialize();
 }
 
 void loop() {
